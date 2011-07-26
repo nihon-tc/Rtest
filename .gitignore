@@ -1,0 +1,8 @@
+script/_*
+RJNA/_*
+RJNA/out.errors.txt
+RJNA/libraries
+RJNA/dist/R
+RJNA/dist/R.zip
+RJNA/dist/*.tmp
+*/.gradle

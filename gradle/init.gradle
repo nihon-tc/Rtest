@@ -1,0 +1,25 @@
+//def R_HOME="C:/opt/R-2.12.2"
+//def RJAVA_HOME="$R_HOME/library/rJava/jri"
+
+def GRADLE_OPTS="-Djava.library.path=$RJAVA_HOME"
+ant.property(environment:'env')
+ant.properties['env.GRADLE_OPTS']=GRADLE_OPTS
+
+/*
+scanner = ant.fileScanner {
+   fileset(dir:R_HOME) {
+     include(name:"**/*.dll")
+   }
+   fileset(dir:RJAVA_HOME) {
+     include(name:"**/*.dll")
+   }
+}
+
+ant.echo scanner.dump()
+
+for(f in scanner){
+	ant.echo f.dump()
+	System.load f.getAbsolutePath()
+}
+*/
+

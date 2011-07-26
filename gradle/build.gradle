@@ -1,0 +1,51 @@
+defaultTasks 'rjnatest'
+
+//def R_HOME="C:/opt/R-2.12.2"
+//def RJAVA_HOME="$R_HOME/library/rJava/jri"
+//def GRADLE_OPTS="-Djava.library.path=$RJAVA_HOME"
+
+
+buildscript {
+	ant.echo RJAVA_HOME
+  repositories {
+      //flatDir(dirs: file("$projectDir/lib"))
+      flatDir(dirs: file("$RJAVA_HOME"))
+  }
+  dependencies {
+    classpath("org.rosuda.JRI:JRI:")
+  }
+}
+
+task env_init{
+  ant.property(environment:'env')
+	//def R_HOME=ant.properties['env.R_HOME']
+	ant.properties['env.R_HOME']=R_HOME
+  ant.properties['env.PATH']="$R_HOME/bin;$R_HOME/bin/i386"
+  //ant.properties['env.R_DOC_DIR']="$R_HOME/doc"
+  ant.properties['env.R_INCLUDE_DIR']="$R_HOME/include"
+  ant.properties['env.R_SHARE_DIR']="$R_HOME/share"
+
+  println "R_HOME=${ant.properties['env.R_HOME']}"
+  println "PATH=${ant.properties['env.PATH']}"
+  //println "R_DOC_DIR=${ant.properties['env.R_DOC_DIR']}"
+  println "R_INCLUDE_DIR=${ant.properties['env.R_INCLUDE_DIR']}"
+  println "R_SHARE_DIR=${ant.properties['env.R_SHARE_DIR']}"
+
+	//init.gradle value passed
+  println "GRADLE_OPTS=${ant.properties['env.GRADLE_OPTS']}"
+}
+
+import org.rosuda.JRI.REXP
+import org.rosuda.JRI.Rengine
+
+task rjnatest(depensOn:env_init){
+	println "versionCheck=${Rengine.versionCheck()}"
+
+	def engine = new Rengine(["--no-save"] as String[] , false, null)
+
+	engine.assign("a", [36] as int[] )
+	def result = engine.eval("sqrt(a)")
+	println "result=${result.asDouble()}"
+
+	engine.end()
+}

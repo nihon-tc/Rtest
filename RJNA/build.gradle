@@ -1,0 +1,179 @@
+defaultTasks 'jnaerator_cnv'
+apply plugin: 'groovy'
+
+def jdkVersion = 1.6
+def enc = 'UTF-8'
+sourceCompatibility = jdkVersion
+targetCompatibility = jdkVersion
+[compileJava, compileGroovy, compileTestJava, compileTestGroovy].each{ it.options.encoding = enc }
+[compileGroovy, compileTestGroovy].each{ it.groovyOptions.encoding = enc }
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '1.0-milestone-2'
+}
+
+buildscript {
+  repositories {
+      flatDir(dirs: file("$projectDir/libs"))
+      //mavenCentral()
+  }
+  dependencies {
+    classpath("com.ochafik.lang.jnaerator:jnaerator:0.9.5")
+  }
+}
+
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    groovy group: 'org.codehaus.groovy', name: 'groovy-all', version: '1.7.10'
+    testCompile 'junit:junit:4.8.1'
+}
+
+/*
+sourceSets {
+  main{
+    groovy {
+      //srcDirs=['src/main/groovy','src/main/java']
+      srcDirs+='src/main/java'
+    }
+    java {
+      srcDirs=[]
+    }
+
+  }
+}
+*/
+
+
+//jnaerator OS check Function
+import com.sun.jna.Platform
+def getCurrentOSAndArchString() {
+    String os = System.getProperty("os.name")
+    String arch = System.getProperty("os.arch");
+    if (os.equals("Mac OS X")) {
+      os = "darwin";
+      arch = "fat";
+      //arch = Platform.is64Bit() ? "64" : "32";
+    } else if (os.startsWith("Windows")) {
+      return "win" + (Platform.is64Bit() ? "64" : "32");
+    } else if (os.matches("SunOS|Solaris")){
+      os = "solaris";
+    }
+    return os + "-" + arch;
+}
+
+
+
+def env_init(){
+  ant.property(environment:'env')
+  //ant.properties['env.VISUAL_STUDIO_HOME']='C:\Program Files\Microsoft Visual Studio 10.0'
+  //ant.properties['env.WINDOWS_SDK_HOME']='C:\Program Files\Microsoft SDKs\Windows\v7.0A'
+  ant.properties['env.VISUAL_STUDIO_HOME']='../header/Microsoft Visual Studio 10.0'
+  ant.properties['env.WINDOWS_SDK_HOME']='../header/Microsoft SDKs/Windows/v7.0A'
+
+  println "VISUAL_STUDIO_HOME=${ant.properties['env.VISUAL_STUDIO_HOME']}"
+  println "WINDOWS_SDK_HOME=${ant.properties['env.WINDOWS_SDK_HOME']}"
+  println "OSTYPE=${getCurrentOSAndArchString()}"
+}
+
+def lib_copy(){
+  def lib_dir = [
+                  'win32':"$DLLPATH"
+                  //,'win64':'win64'
+                  //,'Linux-amd64':'x86_64'
+                  //,'Linux-x86_64':'x86_64'
+                  //,'darwin-fat':'x86_64'
+                ]
+  lib_dir.each{k,v->
+    srcDir = "master/$v"
+    destDir = "libraries/$k"
+    ant.copy(todir: destDir, overwrite: true ) {
+      fileset(dir: srcDir, includes: '*.dll,*.so')
+    }
+  }
+}
+
+def lib_add(){
+  ant.exec(executable:"jar") {
+          arg(value:"uf")
+          arg(value:"dist/R.jar")
+          arg(value:"libraries")
+  }
+
+  //debug setting additonal
+  srcDir = "setting"
+  destDir = "dist"
+  ant.copy(todir: destDir, overwrite: true ) {
+    fileset(dir: srcDir, includes: '*.bat,*.jar,*.groovy,*.sh')
+  }
+
+}
+
+
+import com.ochafik.lang.jnaerator.JNAerator
+import com.ochafik.lang.jnaerator.JNAeratorConfig
+
+task jnaerator_clean{
+  ant.property(environment:'env')
+  ant.echo ant.properties['env.USERPROFILE']
+  ant.delete(dir:"${ant.properties['env.USERPROFILE']}/.jnaerator/extractedLibraries")
+  ant.delete(dir:"${ant.properties['env.USERPROFILE']}/.jnaerator/temp")
+  ant.delete(dir:"${projectDir}/libraries")
+  //ant.delete(dir:"${projectDir}/dist")
+  ant.delete() {
+    fileset(dir: "${projectDir}/dist")
+  }
+  ant.delete() {
+    fileset(dir: "${projectDir}",includes: '_jnaerator.*')
+  }
+}
+
+task jnaerator_cnv(depensOn:jnaerator_clean) {
+  env_init()
+  lib_copy()
+  //see sample
+  // http://code.google.com/p/nativelibs4java/source/browse/trunk/libraries/OpenCV/config.jnaerator
+  def argsArray=[
+                  '-library','R'
+                  ,"$INCPATH/*.h"
+                  ,"$INCPATH/R_ext/*.h"
+                  ,"-arch","win32" 
+                  ,"master/$DLLPATH/*.dll"
+                  //,"-entryClass","R"
+                  //,"-defaultLibrary",'R'
+                  ,'-o', './tmp'
+                  ,'-I./inc'
+                  ,'-jar','dist/R.jar'
+                  ,'-v',
+                  //,'-DD5APICALL=__stdcall'
+                ] 
+
+  ant.echo argsArray
+
+  ant.exec(executable:"java") {
+          arg(value:"-jar")
+          arg(value:"libs/jnaerator-0.9.5.jar")
+          argsArray.each{arg(value:it)}
+  }
+/*
+  JNAeratorConfig config = new JNAeratorConfig();
+  println config.dump()
+  JNAerator.main(new JNAerator(config), argsArray)
+  //JNAerator.main(argsArray)
+*/
+  lib_add()
+}
+
+
+//
+// 以降は
+// executable jar をつくる場合に必要な記述が必要です
+//
+//jar {
+//    from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+//}
+//manifest.mainAttributes("Main-Class" : "main")
+
